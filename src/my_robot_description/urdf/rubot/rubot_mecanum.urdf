@@ -204,8 +204,8 @@
     </inertial>
   </link>
   <joint name="scan_joint" type="fixed">
-    <axis xyz="0 0 1"/>
-    <origin rpy="0 0 3.14" xyz="0 0 0.14"/>
+    <axis xyz="0 0 3.14"/>
+    <origin rpy="0 0 0" xyz="0 0 0.14"/>
     <parent link="base_link"/>
     <child link="base_scan"/>
   </joint>
@@ -293,7 +293,7 @@
   <!-- Laser Distance Sensor YDLIDAR X4 controller-->
   <gazebo reference="base_scan">
     <sensor name="lidar" type="ray">
-    <pose>0.215 0 0.215 0 0 0</pose>
+    <pose>0.215 0 0.215 0 0 3.14</pose>
     <always_on>true</always_on>
     <visualize>false</visualize>
     <update_rate>5</update_rate>
