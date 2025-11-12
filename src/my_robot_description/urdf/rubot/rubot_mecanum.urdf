@@ -293,7 +293,7 @@
   <!-- Laser Distance Sensor YDLIDAR X4 controller-->
   <gazebo reference="base_scan">
     <sensor name="lidar" type="ray">
-    <pose>0.215 0 0.215 0 0 3.14</pose>
+    <pose>0.215 0 0.215 0 0 0</pose>
     <always_on>true</always_on>
     <visualize>false</visualize>
     <update_rate>5</update_rate>
