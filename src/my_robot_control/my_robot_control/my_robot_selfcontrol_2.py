@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
 
 class RobotSelfControl(Node):
-
     def __init__(self):
         super().__init__('robot_selfcontrol_node')
 
-        # Configurable parameters
         self.declare_parameter('distance_laser', 0.3)
         self.declare_parameter('speed_factor', 1.0)
-        self.declare_parameter('forward_speed', 0.2)
+        self.declare_parameter('forward_speed', 0.3)
         self.declare_parameter('rotation_speed', 0.3)
 
         self._distanceLaser = self.get_parameter('distance_laser').value
@@ -31,13 +30,18 @@ class RobotSelfControl(Node):
             LaserScan,
             '/scan',
             self.laser_callback,
-            10  # Default QoS depth
+            qos_profile_sensor_data  # IMPORTANT
         )
 
-        self.start_time = self.get_clock().now().seconds_nanoseconds()[0]
+        # publish cmd_vel continuously
+        self.create_timer(0.1, self.publish_cmd_vel)
+
         self._shutting_down = False
+        self.start_time = self.get_clock().now().seconds_nanoseconds()[0]
         self._last_info_time = self.start_time
-        self._last_speed_time = self.start_time
+
+    def publish_cmd_vel(self):
+        self._cmdVel.publish(self._msg)
 
     def laser_callback(self, scan):
         if self._shutting_down:
@@ -46,7 +50,6 @@ class RobotSelfControl(Node):
         angle_min_deg = scan.angle_min * 180.0 / 3.14159
         angle_increment_deg = scan.angle_increment * 180.0 / 3.14159
 
-        # Filter valid readings within [-150°, 150°]
         custom_range = [
             (distance, i) for i, distance in enumerate(scan.ranges)
             if scan.range_min < distance < scan.range_max
@@ -59,36 +62,19 @@ class RobotSelfControl(Node):
         closest_distance, element_index = min(custom_range)
         angle_closest_deg = angle_min_deg + element_index * angle_increment_deg
 
-        # Determine zone
+        # Determine the zone
+
+        # Obstacle detected
         if -45 <= angle_closest_deg <= 45:
-            zone = "FRONT"
-        elif 45 < angle_closest_deg <= 110:
-            zone = "LEFT"
-        elif -110 <= angle_closest_deg < -45:
-            zone = "RIGHT"
-        elif 110 < angle_closest_deg <= 150:
-            zone = "BACK_LEFT"
-        elif -150 <= angle_closest_deg < -110:
-            zone = "BACK_RIGHT"
-        else:
-            zone = "OUTSIDE FOV"
-
-        now = self.get_clock().now().seconds_nanoseconds()[0]
-        if now - self._last_info_time >= 1:
-            self.get_logger().info(f"[DETECTION] Closest object at {closest_distance:.2f} m | Angle: {angle_closest_deg:.1f}° | Zone: {zone}")
-            self._last_info_time = now
-
-        # React to obstacle
-        if closest_distance < self._distanceLaser:
-            if zone == "FRONT":
+            if closest_distance < self._distanceLaser:
                 self._msg.linear.x = 0.0
                 self._msg.angular.z = 0.0
-                self._cmdVel.publish(self._msg)
+            else:
+                self._msg.linear.x = self._forwardSpeed * self._speedFactor
+                self._msg.angular.z = 0.0
         else:
             self._msg.linear.x = self._forwardSpeed * self._speedFactor
             self._msg.angular.z = 0.0
-
-
 
 
 def main(args=None):
